@@ -1,0 +1,1047 @@
+---
+title: "Intro to Machine Learning | Part 2 | https://github.com/utkavya/group_4_STA380_part_2_assignment"
+author: "Aashi Aashi, Soumya Agrawal, Kavya Angara, Rajshree Mishra"
+date: "2022-08-02"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r include=FALSE}
+library(dplyr)
+library(tidyverse)
+library(ggplot2)
+library(ggplot2)
+library(ggthemes)
+library(reshape2)
+library(RCurl)
+library(foreach)
+library(fpc)
+library(cluster)
+```
+
+# Question 1
+
+## Part A
+
+expected_fraction_random_clickers\<- **0.3**
+
+expected_fraction_truthful_clickers\<- **0.7**
+
+Survey_Yes\<-**0.65**
+
+Survey_No\<-**0.35**
+
+Random_Clicker_Survey_Yes\<-**0.5**
+
+Random_Clicker_Survey_No\<-**0.5**
+
+**P(Yes)=** **P(Trutful clicker with Yes Response)+ P( Random clicker with Yes Response)**
+
+**0.65=P(Trutful clicker with Yes Response)+P(Random)\*P(Yes given Random)**
+
+**0.65=P(Trutful clicker with Yes Response)+0.5\*0.3**
+
+```{r echo=FALSE, warning=FALSE, error=FALSE}
+Prob_Trutful_clicker_with_Yes_Response= 0.65-0.15
+Prob_Trutful_clicker_given_Yes_Response= (0.65-0.15)/0.7
+sprintf("fraction of people who are truthful clickers answered yes is %s", Prob_Trutful_clicker_with_Yes_Response)
+sprintf("fraction of people who are truthful clickers given a yes response is  5/7 i.e %s", Prob_Trutful_clicker_given_Yes_Response)
+```
+
+## Part B
+
+P(D)= 0.000025
+
+P(not D)=0.999975
+
+P(P\|D)=0.993
+
+P(P\|-D)=0.0001
+
+P(D\|P)=(P(D)\*P(P\|D))/P(Positive) ---\> 0.000025\*0.993/P(Positive)
+
+To find P(Positive), we need to use concept of Total Probability
+
+**P(Positive)=P(D)*P(T\|D)+P(not D)*P(T\|-D)**
+
+```{r  warning=FALSE, error=FALSE}
+P_Positive=(0.000025*0.993)+(0.999975*0.0001)
+Prob_Disease_given_Positive<-0.000025*0.993/P_Positive
+print(Prob_Disease_given_Positive)
+```
+
+# Question 2 - **Wrangling the Billboard Top 100**
+
+```{r error=FALSE, warning=FALSE}
+Billboard<-read.csv("STA380_ka/STA380/data/billboard.csv")
+Billboard<-Billboard[!duplicated(Billboard), ]
+head(Billboard,5)
+```
+
+## Part A
+
+```{r warning=FALSE, error=FALSE}
+Songs_Frequency<-Billboard %>% count(song, performer ,sort = TRUE)
+head(Songs_Frequency,10)
+```
+
+## Part B
+
+```{r warning=FALSE, error=FALSE}
+Billboard_without_1958_2021 <- Billboard[!Billboard$year %in% c(1958,2021),]
+musical_diversity <- Billboard_without_1958_2021 %>%            
+  group_by(year) %>%
+  summarise(count = n_distinct(song_id))
+head(musical_diversity)
+```
+
+```{r warning=FALSE, error=FALSE}
+plot(musical_diversity$year, musical_diversity$count, type = "l")   
+```
+
+## Part C
+
+```{r error=FALSE, warning=FALSE, include=FALSE}
+weeks_for_songs<-Billboard %>% count(song_id ,sort = TRUE)
+ten_week_hit<-weeks_for_songs[weeks_for_songs$n>=10,]
+```
+
+```{r include=FALSE , warning=FALSE, error=FALSE}
+Billboard_only_10_week_hit<-merge(x=Billboard,y=ten_week_hit,by="song_id")
+Billboard_Artist_only_10_week_hit <- Billboard_only_10_week_hit%>%            
+                                                                  group_by(performer) %>%
+                                                        summarise(count = n_distinct(song_id))
+Artist_withleast_30_ten_week_hit<- Billboard_Artist_only_10_week_hit[Billboard_Artist_only_10_week_hit$count>=30,]
+```
+
+```{r warning=FALSE, error=FALSE}
+ggplot(data=Artist_withleast_30_ten_week_hit, aes(x=fct_reorder(performer,
+                         count), y=count)) + geom_bar(stat ='identity') +
+theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
+```
+
+# Question 3 - **Green Buildings**
+
+```{r echo=FALSE, error=FALSE, warning=FALSE}
+library(tidyverse)
+library(ggplot2)
+data = read.csv("STA380_ka/STA380/data/greenbuildings.csv")
+###Fact check median data###
+cat("Let us first fact check the median rent rates  calculated by the employee:\n")
+data$green_rating <- as.factor(data$green_rating)
+paste("Median rent for green buildings: ", 
+      median(data$Rent[data$green_rating == 1]))
+paste("Median rent for non-green buildings: ", 
+      median(data$Rent[data$green_rating == 0]))
+attach(data)
+```
+
+```{r  echo=FALSE, warning=FALSE, error=FALSE}
+cat("Median values are correct. Let us cross check his assumption of considering \nmedian over mean")
+ggplot(data=data) + 
+  geom_boxplot(mapping=aes(x=green_rating, y=Rent))
+
+cat("We can see that on average green building has higher rent but range of \n non-green buildings in much higher")
+cat("Let us check the correlation of rent with other predictors for both green \n and non green buildings")
+
+ggplot(data=data) + 
+  geom_point(mapping=aes(x=size, y=Rent, colour=green_rating)) +
+  labs(x="Size", y='Rent', title = 'Green buildings: Size VS Rent',
+       color='Green building')
+cat("Size is directly correlated to rent")
+
+ggplot(data=data) + 
+  geom_point(mapping=aes(x=leasing_rate, y=Rent, colour=green_rating)) +
+  labs(x="Leasing Rate", y='Rent', title = 'Green buildings: Leasing Rate VS Rent',
+       color='Green building')
+
+cat("Increasing leasing rate increases rent")
+```
+
+```{r echo=FALSE, warning=FALSE, error=FALSE}
+ggplot(data=data) + 
+  geom_point(mapping=aes(x=age, y=Rent, colour=green_rating))+
+  labs(x="Age", y='Rent', title = 'Green buildings: Age VS Rent',
+       color='Green building')
+
+g = ggplot(data, aes(x=age))
+g + geom_density(aes(fill=factor(green_rating)), alpha=0.4)+
+  labs(x="Age", y='Density', title = 'Distribution of age',
+       fill='Green building')
+
+cat("The plot shows that green building are generally newly built")
+
+ggplot(data=data) + 
+  geom_point(mapping=aes(x=cluster_rent, y=Rent, colour=green_rating)) +
+  labs(x="Cluster Rent", y='Rent', title = 'Green buildings: Cluster Rent VS Rent',
+       color='Green building')
+
+cat("The plot shows that with increasing cluster rent, rent increases")
+```
+
+```{r echo=FALSE, warning=FALSE, error=FALSE}
+cat("The employee has not considered the class rating of the building. \nLet us look at the two classes")
+
+ggplot(data=data) + 
+  geom_point(mapping=aes(x=age, y=Rent, colour=class_a))+
+  labs(x="Age", y='Rent', title = 'Class A: Age VS Rent',
+       color='Class A building')
+
+cat("we see that class A buildings have higher rent")
+
+cat("Let us check the difference in rent for class a and class b along with \ngreen and non-green building")
+
+ggplot(data, aes(class_a, ..count..)) + geom_bar(aes(fill = green_rating))
+
+cat("Here we can see that the number of non-green class A building are more than class b ")  
+```
+
+```{r echo=FALSE, warning=FALSE, error=FALSE}
+cat("Let us check the rent for this distribution based on age")
+
+cat("Plotting rent for green buildings")
+data$age_cat <- cut(data$age, breaks = c(0, seq(10, 190, by = 10)), labels = 0:18,right=FALSE)
+data_class_a <- subset(data, data$class_a == 1)
+data_class_a$age_cat <- cut(data_class_a$age, breaks = c(0, seq(10, 190, by = 10)), labels = 0:18,right=FALSE)
+medians <- aggregate(Rent~ age_cat + green_rating, data_class_a, median)
+ggplot(data = medians, mapping = aes(y = Rent, x = age_cat ,group = green_rating, colour=green_rating)) +
+  geom_line(size=1.2)+
+  labs(x="Age in 10 years", y='Median Rent', title = 'Class A buildings: Median rent over the years',
+       fill='Green building')
+
+cat("Plotting rent for non-green buildings")
+
+data_non_class_a <- subset(data, data$class_a != 1)
+data_non_class_a$age_cat <- cut(data_non_class_a$age, breaks = c(0, seq(10, 190, by = 10)), labels = 0:18,right=FALSE)
+medians <- aggregate(Rent~ age_cat + green_rating, data_non_class_a, median)
+ggplot(data = medians, mapping = aes(y = Rent, x = age_cat ,group = green_rating, colour=green_rating)) +
+  geom_line(size=1.2)+
+  labs(x="Age in 10 years", y='Median Rent', title = 'Non-Class A buildings: Median rent over the years',
+       fill='Green building')
+```
+
+```{r echo=FALSE, warning=FALSE, error=FALSE}
+cat("Based on the two above plots we can see that in the first 5 years \nnon class A building earn more money\n")
+cat("Since our builiding will be 250K sq ft in size let us consinsider a subset of \n 200-300K sq ft to check median rent here\n")
+data_size <- subset(data, data$size > 200000 & data$size < 300000)
+med <- aggregate(Rent~ age_cat + green_rating, data_size, median)
+med1 <- subset(med, med$green_rating == 1)
+rent1<-med1[1:5,]$Rent
+med0 <- subset(med, med$green_rating == 0)
+rent0<-med0[1:5,]$Rent
+paste("Difference in rent for the first 5 years class a buildings: ", 
+      (sum(rent1,na.rm = T) - sum(rent0, na.rm = T)) / 5)
+
+cat("\nConsidering all the above factors we can see that it is most profitable to invest\n in a class A green building
+    rather than a non-class A green building.\n Considering 90% occupany rate and 250k size and 3.097 rent we can then recuperate the costs in 7.17 years")   
+```
+
+# Question 4 - **Capital Metro data**
+
+```{r, echo = FALSE,warning=FALSE,error=FALSE}
+#load library
+library(ggplot2)
+library(tidyverse)
+library(reshape2)
+
+#read file
+capitalmetro <- read.csv("STA380_ka/STA380/data/capmetro_UT.csv")
+attach(capitalmetro)
+# Adding columns
+capitalmetro <- capitalmetro %>%  mutate(time_hms_c = format(as.POSIXct(capitalmetro$timestamp), format = "%H:%M:%S")) %>%
+                              mutate(hour_c = format(as.POSIXct(capitalmetro$timestamp), format = "%H"))
+
+#dual plot with alighting and boarding
+capitalmetro_p1_sub = capitalmetro %>% group_by(hour_c) %>%
+  summarise(total_boarding = sum(boarding), .groups = 'drop')
+
+capitalmetro_p2_sub = capitalmetro %>% group_by(hour_c) %>%
+  summarise(total_alighting = sum(alighting),.groups = 'drop')
+
+capitalmetro_dual <- merge(capitalmetro_p1_sub,capitalmetro_p2_sub,by=c("hour_c"))
+
+#melt data frame into long format
+capitalmetro_dual <- melt(capitalmetro_dual ,  id.vars = 'hour_c', variable.name = 'series')
+#create line plot for each column in data frame
+ggplot(capitalmetro_dual, aes(x=hour_c,y=value,color=series,group=series)) + geom_line()
+
+```
+
+Observing the above plot we can clearly see that that a large number of people alight around the UT campus during the morning hours and board from the UT Campus bus station in evening hours. This pattern is expected as students or teachers do arrive at campus during morning and leave the campus by evening.
+
+```{r echo = FALSE,warning=FALSE,error=FALSE}
+capitalmetro_p3 = capitalmetro %>% group_by(hour_c, month) %>%
+  summarise(total_boarding = sum(boarding),
+            .groups = 'drop')
+ggplot(capitalmetro_p3, aes(x=hour_c,y=total_boarding,color=month,group=month)) + geom_line()
+
+#ALIGHTING plot against hours vs. month
+capitalmetro_p4 = capitalmetro %>% group_by(hour_c, month) %>%
+  summarise(total_alighting = sum(alighting),
+            .groups = 'drop')
+ggplot(capitalmetro_p4, aes(x=hour_c,y=total_alighting,color=month,group=month)) + geom_line()
+```
+
+The plot shows the pattern of alighting across 3 different months. As depicted, we can see that there is no major change among these months. This might be because the months selected here are the months where no major holidays are observed and the UT campus is operated as normal.
+
+```{r echo = FALSE,warning=FALSE,error=FALSE}
+#plot against weekday weekend
+capitalmetro_p5 = capitalmetro %>% group_by(hour_c, weekend) %>%
+  summarise(total_boarding = sum(boarding),
+            .groups = 'drop')
+
+ggplot(data = capitalmetro_p5, aes(x = hour_c, y = total_boarding, fill = weekend)) +
+  geom_bar(stat = "identity", position = position_dodge(), alpha = 0.75) 
+```
+
+From the plot we can see clear distinction among the patterns observed in weekdays vs in weekend. We can see that the number of people boarding the bus during weekend is very low, which also suggests that people do not visit UT campus during weekends.
+
+```{r echo = FALSE,warning=FALSE,error=FALSE}
+#facet plot for months
+capitalmetro_p6 = capitalmetro %>% group_by(hour_c,temperature,month) %>%
+  summarise(total_boarding = sum(boarding), .groups = 'drop')
+
+ggplot(capitalmetro_p6, aes(hour_c,  total_boarding)) +
+  geom_point(aes(colour = temperature)) + 
+  facet_wrap(~ month, nrow = 1) 
+```
+
+Here we have a facet plot against total boarding across months with temperature used as a gradient. We can see on an overall level, we do have temperature difference across the months but the pattern of boarding remains same.
+
+In conclusion, we can say that in the given data since we are only considering the months where UT campus is highly active, we do not see drops in the number of people alighting or boarding (except on the weekends which is expected). The campus was running as usual as there were no holidays as well. The temperature difference was varying across the months but patterns of boarding and alighting remained the same.
+
+# Question 5 Portfolio Modeling
+
+```{r error=FALSE, warning=FALSE, include=FALSE}
+library(ggstance)
+library(mosaic)
+library(quantmod)
+library(foreach)
+```
+
+To ensure diversity and different levels of risk in portfolio, I selected the following ETFs: "QQQ", "SPY", "SVXY", "EPV", "AOR" and "YYY".
+
+The Ivesco QQQ trust is one of the largest, owns only non-financial stocks
+
+SPY is one of the safest and largest ETFs around.
+
+ProShares VIX Short-Term Futures ETF (SVXY) is a high risk ETF. This is an unusual ETF since the performance is dependent on the market volatility, not security.
+
+ProShares UltraShort FTSE Europe (EPV) is a low performing ETF for the past few years.
+
+iShares Core Growth Allocation ETF (AOR) is a very diverse ETF.
+
+In total, we have selected 6 ETFs - "QQQ", "SPY", "SVXY", "EPV", "AOR" and "YYY". We have considered 5 years of ETF data starting from 01-August-2017.
+
+```{r include=FALSE , warning=FALSE, error=FALSE}
+
+# Import a few stocks
+stocklist = c("QQQ", "SPY", "SVXY", "EPV", "AOR", "YYY")
+initial_wealth = 100000
+# Getting the price data for 5 years
+pricedata= getSymbols(stocklist, from='2017-08-01')
+for(ticker in stocklist){
+  expr = paste0(ticker, "a=adjustOHLC(", ticker, ")")
+  eval(parse(text=expr))
+}
+
+```
+
+```{r echo = FALSE,warning=FALSE,error=FALSE}
+port_returns = cbind( ClCl(QQQa),
+                     ClCl(SPYa),
+                     ClCl(SVXYa),
+                     ClCl(EPVa),
+                     ClCl(AORa),
+                     ClCl(YYYa))
+head(port_returns)
+```
+
+```{r error=FALSE, warning=FALSE, include=FALSE}
+port_returns = as.matrix(na.omit(port_returns))
+```
+
+```{r echo = FALSE,warning=FALSE,error=FALSE}
+pairs(port_returns)
+```
+
+SIMULATION 1 : SAFE Portfolio
+
+ETFs: "QQQ", "SPY", "SVXY", "EPV", "AOR", "YYY"
+
+For the safe portfolio, we distributed 90% of the total wealth among the high performing ETFs - QQQ, SPY and AOR.
+
+```{r echo = FALSE,warning=FALSE,error=FALSE}
+sim1 = foreach(i=1:5000, .combine = rbind) %do% {
+  weights = c(0.3, 0.4, 0.025, 0.025, 0.2, 0.05)
+  total_wealth = initial_wealth
+  holdings = total_wealth * weights
+  n_days = 20
+  wealthtracker = rep(0, n_days)
+  
+  for(today in 1:n_days){
+    return_today = resample(port_returns, 1, orig.ids=FALSE)
+    holdings = holdings * (1 + return_today)
+    total_wealth = sum(holdings)
+    wealthtracker[today] = total_wealth
+    
+    # Rebalancing
+    holdings = total_wealth * weights
+  }
+  
+  wealthtracker
+}
+head(sim1)
+
+```
+
+```{r warning=FALSE,error=FALSE}
+hist(sim1[,n_days], 25)
+```
+
+```{r warning=FALSE,error=FALSE}
+plot(density(sim1[,n_days]))
+```
+
+```{r warning=FALSE,error=FALSE}
+hist(sim1[,n_days]- initial_wealth, breaks=30)
+
+```
+
+```{r echo = FALSE,warning=FALSE,error=FALSE}
+conf_5Per = confint(sim1[,n_days]- initial_wealth, level = 0.90)$'5%'
+cat('\nAverage return of investement after 20 days', mean(sim1[,n_days]), "\n")
+cat('\n5% Value at Risk for safe portfolio-',conf_5Per, "\n")
+```
+
+```{r warning=FALSE,error=FALSE}
+hist(sim1[,n_days], 50)
+plot(density(sim1[,n_days]))
+hist(sim1[,n_days]- initial_wealth, breaks=30)
+
+```
+
+```{r echo = FALSE,warning=FALSE,error=FALSE}
+conf_5Per = confint(sim1[,n_days]- initial_wealth, level = 0.90)$'5%'
+cat('\nAverage return of investement after 20 days', mean(sim1[,n_days]), "\n")
+cat('\n5% Value at Risk for safe portfolio-',conf_5Per, "\n")
+```
+
+SIMULATION 2 : HIGH RISK PORTFOLIO
+
+For the high risk portfolio, we distributed 90% of the total wealth among the low performing ETFs - SVXY, EPV and YYY.
+
+```{r echo = FALSE,warning=FALSE,error=FALSE}
+sim2 = foreach(i=1:5000, .combine = rbind) %do% {
+  weights = c(0.01, 0.03, 0.3, 0.3, 0.06, 0.3)
+  total_wealth = initial_wealth
+  holdings = total_wealth * weights
+  n_days = 20
+  wealthtracker = rep(0, n_days)
+  
+  for(today in 1:n_days){
+    
+    return_today = resample(port_returns, 1, orig.ids=FALSE)
+    holdings = holdings * (1 + return_today)
+    total_wealth = sum(holdings)
+    wealthtracker[today] = total_wealth
+    
+    # Rebalancing
+    holdings = total_wealth * weights
+  }
+  
+  wealthtracker
+}
+```
+
+```{r echo = FALSE,warning=FALSE,error=FALSE}
+hist(sim2[,n_days], 50)
+plot(density(sim2[,n_days]))
+```
+
+```{r echo = FALSE,warning=FALSE,error=FALSE}
+# Profit/loss
+hist(sim2[,n_days]- initial_wealth, breaks=30)
+hist(sim2[,n_days]- initial_wealth, breaks=30)
+conf_5Per = confint(sim2[,n_days]- initial_wealth, level = 0.90)$'5%'
+cat('\nAverage return of investement after 20 days', mean(sim2[,n_days]), "\n")
+cat('\n5% Value at Risk for High portfolio-',conf_5Per, "\n")
+```
+
+```{r, echo=FALSE , warning=FALSE, error=FALSE}
+hist(sim2[,n_days], 50)
+plot(density(sim2[,n_days]))
+```
+
+```{r echo = FALSE,warning=FALSE,error=FALSE}
+hist(sim2[,n_days]- initial_wealth, breaks=30)
+conf_5Per = confint(sim2[,n_days]- initial_wealth, level = 0.90)$'5%'
+cat('\nAverage return of investement after 20 days', mean(sim2[,n_days]), "\n")
+cat('\n5% Value at Risk for High portfolio-',conf_5Per, "\n")
+
+```
+
+SIMULATION 3 - With equal weights for high risk and low risk
+
+```{r, echo=FALSE, include=FALSE, warning=FALSE, error=FALSE}
+sim3 = foreach(i=1:5000, .combine = rbind) %do% {
+  weights = c(0.16, 0.17, 0.17, 0.17, 0.17, 0.16)
+  total_wealth = initial_wealth
+  holdings = total_wealth * weights
+  n_days = 20
+  wealthtracker = rep(0, n_days)
+  
+  for(today in 1:n_days){
+    
+    return_today = resample(port_returns, 1, orig.ids=FALSE)
+    holdings = holdings * (1 + return_today)
+    total_wealth = sum(holdings)
+    wealthtracker[today] = total_wealth
+    
+    # Rebalancing
+    holdings = total_wealth * weights
+  }
+  
+  wealthtracker
+}
+head(sim3)
+```
+
+```{r warning=FALSE, error=FALSE}
+hist(sim3[,n_days], 50)
+plot(density(sim3[,n_days]))
+```
+
+```{r echo=FALSE, include=FALSE, warning=FALSE, error=FALSE}
+# Profit/loss
+hist(sim3[,n_days]- initial_wealth, breaks=30)
+
+```
+
+```{r  warning=FALSE, error=FALSE}
+conf_5Per = confint(sim3[,n_days]- initial_wealth, level = 0.90)$'5%'
+cat('\nAverage return of investement after 20 days', mean(sim3[,n_days]), "\n")
+cat('\n5% Value at Risk for High portfolio-',conf_5Per, "\n")
+```
+
+For the safe portfolio, we are observing the maximum return of investment and the lowest 5% VaR.
+
+As the portfolio risk increases, we are able to witness the decrease in returns and increase in VaR value as expected.
+
+# Question 6 Clustering and PCA
+
+```{r include=FALSE, warning=FALSE, error=FALSE}
+#install.packages("factoextra")
+library(factoextra)
+#install.packages("cluster")
+library(cluster)
+wine = read.csv("STA380_ka/STA380/data/wine.csv")
+```
+
+```{r warning=FALSE, error=FALSE}
+head(wine)
+```
+
+There are two main type of wine: red and white.
+
+Besides the obvious visual difference in color, the quality of wine can be determined based on its chemical properties.
+
+```{r  warning=FALSE, error=FALSE, echo=FALSE}
+wine_red = sum(wine$color == "red")
+sprintf("Number of rows with wine_red is %s",wine_red)
+
+```
+
+```{r  warning=FALSE, error=FALSE, echo=FALSE}
+wine_white = sum(wine$color == "white")
+sprintf("Number of rows with wine_white is %s",wine_white)
+
+```
+
+```{r  warning=FALSE, error=FALSE, echo=FALSE}
+wine_scale = wine[, -(12:13)] #removed column 12 and 13
+wine_scale = scale(wine_scale, center=TRUE, scale=TRUE)
+```
+
+```{r warning=FALSE, error=FALSE}
+cen_wine = attr(wine_scale , "scaled:center")
+cen_wine
+```
+
+```{r warning=FALSE, error=FALSE}
+scale_wine = attr(wine_scale , "scaled:scale")
+scale_wine
+```
+
+In general, when using K-Means clustering, we evaluate the model for different number of clusters to find the one that gives the best results. However, in this case working with two clusters seems like the best choice as there are two types of wine based on their color.
+
+# K-means Clustering
+
+```{r  warning=FALSE, error=FALSE}
+clust = kmeans(wine_scale, 2, nstart=25)
+str(clust)
+```
+
+```{r warning=FALSE, error=FALSE}
+clust$center[1,]
+```
+
+```{r warning=FALSE, error=FALSE}
+clust$center[2,]
+```
+
+```{r warning=FALSE, error=FALSE}
+clust$center[1,]*scale_wine + cen_wine
+```
+
+```{r warning=FALSE, error=FALSE}
+clust$center[2,]*scale_wine + cen_wine
+```
+
+```{r error=FALSE, warning=FALSE, include=FALSE}
+which(clust$cluster == 1)
+```
+
+```{r error=FALSE, warning=FALSE, include=FALSE}
+which(clust$cluster == 2)
+```
+
+```{r echo=FALSE, error=FALSE, warning=FALSE}
+c_data = as.data.frame(clust$cluster)
+colnames(c_data)[1] = "cluster"
+clust_data = transform(c_data, cluster = as.numeric(cluster))
+wine['cluster'] = c_data['cluster']
+wine_c_table = table(Cluster = wine$cluster, Color = wine$color)
+sprintf("Clusters and color ")
+wine_c_table
+```
+
+```{r warning=FALSE, error=FALSE}
+cluster_accuracy = round(100*(wine_c_table[1,1] + wine_c_table[2,2]) / nrow(wine))
+cluster_accuracy
+```
+
+```{r echo=FALSE, error=FALSE, warning=FALSE}
+ggplot(data=wine, mapping = aes(volatile.acidity, total.sulfur.dioxide, color=factor(clust$cluster), shape = color)) +
+     geom_point() +
+    scale_color_manual(values=c("red", "white")) + 
+    theme_dark() +
+    labs(y = "Total Sulfur Dioxide", x = "volatile acidity", title = "Wine Clustering on volatile acidity and Total Sulfur Dioxide Plane")
+```
+
+Even though there is no direct assignment for clusters as "White Cluster" and "Red Cluster", the results reveal that red wines are mostly in cluster 1 and white wine in cluster 2. The graph shows that our predictions are mostly accurate. Though the model seems to have intermingled clusters, they are actually separate in other dimensions. the accuracy of the clustering model comes out to be 99% but it might not be the best model to use as the chemical properties of a wine might vary with each other in ways that affect our results.
+
+# PCA
+
+```{r warning=FALSE, error=FALSE}
+pc2 = prcomp(wine[, c("fixed.acidity","volatile.acidity", "citric.acid","residual.sugar","chlorides", "free.sulfur.dioxide","total.sulfur.dioxide","density","pH","sulphates","alcohol")], center = TRUE, scale. = TRUE, rank=5)
+pc2
+```
+
+```{r warning=FALSE, error=FALSE}
+summary(pc2)
+```
+
+```{r warning=FALSE, error=FALSE}
+loadings = pc2$rotation
+loadings
+
+```
+
+```{r warning=FALSE, error=FALSE}
+v_best = pc2$rotation[,1]
+v_best
+```
+
+```{r warning=FALSE, error=FALSE}
+v_second_best = pc2$rotation[,2]
+v_second_best
+```
+
+```{r warning=FALSE, error=FALSE}
+wine_pc <- predict(pc2, wine)
+dim(wine_pc)
+```
+
+```{r error=FALSE, warning=FALSE, include=FALSE}
+wine_master <- data.frame(wine_pc,wine)
+```
+
+```{r warning=FALSE, error=FALSE}
+ggplot(wine_master, aes(x=PC1, y=PC2, color=factor(wine$color), shape= color)) +
+     geom_point() + scale_color_manual(values=c("red", "white")) + theme_dark() +
+    labs(y = "Principal Component 1", x = "Principal Component 2")
+```
+
+```{r warning=FALSE, error=FALSE}
+#install.packages("RColorBrewer")
+library("RColorBrewer")
+myPalette <- colorRampPalette(rev(brewer.pal(11, "Spectral")))
+sc <- scale_colour_gradientn(colours = myPalette(100), limits=c(1, 8))
+ggplot(wine_master, aes(x=PC1, y=PC2, color=quality)) +
+     geom_point() + sc + theme_dark() +
+    labs(y = "Principal Component 1", x = "Principal Component 2")
+```
+
+# Question 7 - **Market segmentation**
+
+```{r error=FALSE, warning=FALSE, include=FALSE}
+social_marketing <- read.csv('STA380_ka/STA380/data/social_marketing.csv')
+social_marketing$chatter<- NULL
+social_marketing$spam <- NULL
+social_marketing$adult <- NULL
+social_marketing$photo_sharing <- NULL 
+social_marketing$health_nutrition <- NULL 
+#################### PCA #########################
+pca_sm = prcomp(social_marketing[,2:32], scale=TRUE, center = TRUE)
+summary(pca_sm)
+```
+
+```{r figmidcity5, echo=FALSE}
+scores = pca_sm$x
+pc_data <- as.data.frame(scores[,1:18])
+X <- pc_data
+protein_distance_matrix = dist(X, method='euclidean')
+# Now run hierarchical clustering
+hier_protein = hclust(protein_distance_matrix, method='average')
+
+cluster1 = cutree(hier_protein, k=6)
+summary(factor(cluster1))
+```
+
+```{r error=FALSE, warning=FALSE, include=FALSE}
+social_cluster <- cbind(social_marketing, cluster1)
+hcluster_average <- aggregate(social_cluster, list(social_cluster$cluster1), mean)
+hcluster_average$cluster1 <- paste("Cluster_", hcluster_average$cluster1, sep = '')
+hcluster_average$Group.1 <- NULL
+hcluster_average$X <- NULL
+row.names(hcluster_average) <- hcluster_average$cluster1
+hcluster_average$cluster1 <- NULL
+hcluster_average <- as.data.frame(t(hcluster_average))
+```
+
+```{r figmidcity7, error=FALSE, warning=FALSE, echo=FALSE}
+hcluster_average <- aggregate(social_cluster, list(social_cluster$cluster1), mean)
+hcluster_average$cluster1 <- paste("Cluster_", hcluster_average$cluster1, sep = '')
+hcluster_average$Group.1 <- NULL
+hcluster_average$X <- NULL
+row.names(hcluster_average) <- hcluster_average$cluster1
+hcluster_average$cluster1 <- NULL
+hcluster_average <- as.data.frame(t(hcluster_average))
+
+hcluster_average$type <- row.names(hcluster_average)
+social_cluster_main <- hcluster_average
+#Cluster 1
+ggplot(social_cluster_main, aes(x =reorder(type, -Cluster_1) , y=Cluster_1)) +
+  geom_bar(stat="identity", position ="dodge") + 
+  theme_bw() + 
+  theme(axis.text.x = element_text(angle=-40, hjust=.1)) + 
+  labs(title="Cluster 1",
+        x ="Category", y = "Cluster centre values")
+#cluster 2 
+ggplot(social_cluster_main, aes(x =reorder(type, -Cluster_2) , y=Cluster_2)) +
+  geom_bar(stat="identity", position ="dodge") + 
+  theme_bw() + 
+  theme(axis.text.x = element_text(angle=-40, hjust=.1)) + 
+  labs(title="Cluster 2",
+        x ="Category", y = "Cluster centre values")
+#Cluster 3
+ggplot(social_cluster_main, aes(x =reorder(type, -Cluster_3) , y=Cluster_3)) +
+  geom_bar(stat="identity", position ="dodge") + 
+  theme_bw() + 
+  theme(axis.text.x = element_text(angle=-40, hjust=.1)) + 
+  labs(title="Cluster 3",
+        x ="Category", y = "Cluster centre values")
+#Cluster 4
+ggplot(social_cluster_main, aes(x =reorder(type, -Cluster_4) , y=Cluster_4)) +
+  geom_bar(stat="identity", position ="dodge") + 
+  theme_bw() + 
+  theme(axis.text.x = element_text(angle=-40, hjust=.1)) + 
+  labs(title="Cluster 4",
+        x ="Category", y = "Cluster centre values")
+#cluster 5
+ggplot(social_cluster_main, aes(x =reorder(type, -Cluster_5) , y=Cluster_5)) +
+  geom_bar(stat="identity", position ="dodge") + 
+  theme_bw() + 
+  theme(axis.text.x = element_text(angle=-40, hjust=.1)) + 
+  labs(title="Cluster 5",
+        x ="Category", y = "Cluster centre values")
+
+#cluster 6
+ggplot(social_cluster_main, aes(x =reorder(type, -Cluster_6) , y=Cluster_6)) +
+  geom_bar(stat="identity", position ="dodge") + 
+  theme_bw() + 
+  theme(axis.text.x = element_text(angle=-40, hjust=.1)) + 
+  labs(title="Cluster 6",
+        x ="Category", y = "Cluster centre values")
+
+```
+
+**Cluster 1** - Tweets in Cluster 1 mainly consists of cooking, politics, sports, travel, college and current events
+
+**Cluster 2** - Tweets in Cluster 1 mainly consists of cooking, fashion, beauty. This may belong to female users
+
+**Cluster 3** - Tweets in Cluster 1 mainly consists of politics, travel, computers and news
+
+**Cluster 4** - Tweets in Cluster 1 mainly consists of art, tv_film, college_uni, online gaming and crafts. This cluster may cater to more of younger crowds
+
+**Cluster 5** - Tweets in Cluster 1 mainly consists of cooking, fashion tv_film, college and music. This cluster may cater to more of younger crowds especially females
+
+**Cluster 6** - Tweets in Cluster 1 mainly consists of parenting, religion, food, cooking, school. This might consist of people in their 30s-40s, who are majorly parents
+
+#### This will assist us in market segmentation and product introduction in accordance with the demographics of the cluster. This aids in effective product promotion, resulting in increased exposure and earnings.
+
+# Question 8 - **The Reuters corpus**
+
+### **Problem**
+
+For a given article, try to find the author of the article. The model will be designed based on the training data available in C50 folder in the Reuters C50 Corpus. We will build model using the Random Forests.
+
+##### **Step 1. Load files and perform pre-processing steps (for training data)**
+
+```{r, echo = FALSE,warning=FALSE,include=FALSE}
+library(tm) 
+library(caret)
+library(plyr)
+library(dplyr)
+library(ggplot2)
+library('e1071')
+library(magrittr)
+library(slam)
+library(proxy)
+
+#Define readerPlain function
+readerPlain = function(fname){ readPlain(elem=list(content=readLines(fname)), id=fname, language='en') }
+
+#Read training folder's data
+train=Sys.glob('STA380_ka/STA380/data/ReutersC50/C50train/*')
+
+all_articles=NULL
+article_labels=NULL
+for (author_name in train)
+{ 
+  author_names_list=substring(author_name,first=50)
+  article_name=Sys.glob(paste0(author_name,'/*.txt'))
+  all_articles=append(all_articles,article_name)
+  article_labels=append(article_labels,rep(author_name,length(article_name)))
+}
+
+#Extract file names without .txt
+all_articles_cleaned = lapply(all_articles, readerPlain) 
+names(all_articles_cleaned) = all_articles
+names(all_articles_cleaned) = sub('.txt', '', names(all_articles_cleaned))
+
+#Create a text mining corpus
+corpus_c=Corpus(VectorSource(all_articles_cleaned))
+
+#Tokenization and Pre-processing 
+corpus_c_temp=corpus_c 
+corpus_c_temp = tm_map(corpus_c_temp, content_transformer(tolower)) #convert to lower case
+corpus_c_temp = tm_map(corpus_c_temp, content_transformer(removeNumbers)) #remove numbers
+corpus_c_temp = tm_map(corpus_c_temp, content_transformer(removePunctuation)) #remove punctuation
+corpus_c_temp = tm_map(corpus_c_temp, content_transformer(stripWhitespace)) #remove excess space
+corpus_c_temp = tm_map(corpus_c_temp, content_transformer(removeWords),stopwords("en")) #removing stopwords
+
+#Create a Doc Matrix
+Doc_mat_train = DocumentTermMatrix(corpus_c_temp)
+Doc_mat_train 
+
+#Remove Sparse Items
+#Below removes those terms that have count 0 in >95% of docs.  
+Doc_mat_train_s=removeSparseTerms(Doc_mat_train,.99)
+
+# Create TF-IDF Matrix
+tf_idf_matrix = weightTfIdf(Doc_mat_train_s)
+DTM_train_final<-as.matrix(tf_idf_matrix) 
+
+
+```
+
+TD IDF matrix for training data:
+
+```{r echo = FALSE,warning=FALSE,error=FALSE}
+tf_idf_matrix 
+```
+
+##### **Step 2. Load files and perform pre-processing steps (for testing data)**
+
+```{r, echo = FALSE,warning=FALSE,include=FALSE}
+
+#Read testing folder's data
+test=Sys.glob('STA380_ka/STA380/data/ReutersC50/C50test/*')
+
+all_articles_t=NULL
+article_labels_t=NULL
+for (author_name_t in test)
+{ 
+  author_names_list_t=substring(author_name_t,first=50)
+  article_name_t=Sys.glob(paste0(author_name_t,'/*.txt'))
+  all_articles_t=append(all_articles_t,article_name_t)
+  article_labels_t=append(article_labels_t,rep(author_name_t,length(article_name_t)))
+}
+
+#Extract file names without .txt
+all_articles_cleaned_t = lapply(all_articles_t, readerPlain) 
+names(all_articles_cleaned_t) = all_articles_t
+names(all_articles_cleaned_t) = sub('.txt', '', names(all_articles_cleaned_t))
+
+#Create a text mining corpus
+corpus_c_t=Corpus(VectorSource(all_articles_cleaned_t))
+
+#Tokenization and Pre-processing 
+corpus_c_temp_t=corpus_c_t 
+corpus_c_temp_t = tm_map(corpus_c_temp_t, content_transformer(tolower)) #convert to lower case
+corpus_c_temp_t = tm_map(corpus_c_temp_t, content_transformer(removeNumbers)) #remove numbers
+corpus_c_temp_t = tm_map(corpus_c_temp_t, content_transformer(removePunctuation)) #remove punctuation
+corpus_c_temp_t = tm_map(corpus_c_temp_t, content_transformer(stripWhitespace)) #remove excess space
+corpus_c_temp_t = tm_map(corpus_c_temp_t, content_transformer(removeWords),stopwords("en")) #removing stopwords
+
+#Create a Doc Matrix
+#passing col names from training data to maintain consistency
+Doc_mat_test=DocumentTermMatrix(corpus_c_temp_t,list(dictionary=colnames(Doc_mat_train_s)))
+
+# Create TF-IDF Matrix
+tf_idf_matrix_t = weightTfIdf(Doc_mat_test)
+DTM_test_final<-as.matrix(tf_idf_matrix_t) #Matrix
+tf_idf_matrix_t 
+
+```
+
+TD IDF matrix for test data:
+
+```{r echo = FALSE,warning=FALSE,error=FALSE}
+tf_idf_matrix 
+```
+
+##### **Step 3. Perform PCA for Dimensional reduction** 
+
+```{r, echo = FALSE,warning=FALSE,include=FALSE}
+
+#Remove columns with 0 entry
+DTM_train_final_c<-DTM_train_final[,which(colSums(DTM_train_final) != 0)] 
+DTM_test_final_c<-DTM_test_final[,which(colSums(DTM_test_final) != 0)]
+
+#Ensure to use on intersecting columns
+DTM_test_final_c = DTM_test_final_c[,intersect(colnames(DTM_test_final_c),colnames(DTM_train_final_c))]
+DTM_train_final_c = DTM_train_final_c[,intersect(colnames(DTM_test_final_c),colnames(DTM_train_final_c))]
+
+#Extract principal components
+pca_c = prcomp(DTM_train_final_c,scale=TRUE)
+predicted_pca=predict(pca_c,newdata = DTM_test_final_c)
+
+
+
+
+```
+
+Look at the loadings for few elements::
+
+```{r echo = FALSE,warning=FALSE,error=FALSE}
+# Look at the loadings for few elements
+pca_c$rotation[order(abs(pca_c$rotation[,1]),decreasing=TRUE),1][1:10]
+pca_c$rotation[order(abs(pca_c$rotation[,2]),decreasing=TRUE),2][1:10]
+```
+
+We will plot a variance plot::
+
+```{r, echo = FALSE,warning=FALSE,error=FALSE}
+
+variance_c <- apply(pca_c$x, 2, var)  
+prop <- variance_c / sum(variance_c)
+plot(prop, xlab = "Principal Component",ylab = "Proportion of Variance Explained")
+```
+
+We can select till PC800 as almost 80% of variance explained by them
+
+```{r, echo = FALSE,warning=FALSE,include=FALSE}
+# 
+#Create data set to be using for classification ML models
+train_class = data.frame(pca_c$x[,1:800])
+train_class['author']=article_labels
+train_load = pca_c$rotation[,1:800]
+
+test_class_pre <- scale(DTM_test_final_c) %*% train_load
+test_class <- as.data.frame(test_class_pre)
+test_class['author']=article_labels_t
+```
+
+##### **Step 4. Build Random Forest models to identify authors**
+
+```{r, echo = FALSE,warning=FALSE,include=FALSE}
+library(randomForest)
+set.seed(101)
+rm_model<-randomForest(as.factor(author)~.,data=train_class, mtry=6,importance=TRUE)
+predicted_rm<-predict(rm_model,data=test_class)
+
+predicted<-predicted_rm
+actual<-as.factor(test_class$author)
+
+check_df<-as.data.frame(cbind(actual,predicted))
+check_df$flag<-ifelse(check_df$actual==check_df$predicted,1,0)#set 1 where predicted = actual
+sum(check_df$flag)
+sum(check_df$flag)*100/nrow(check_df)
+```
+
+The model built using Random forest predicted \~1844 documents correctly with its respective authors and gave us accuracy of \~74%.
+
+# Question 9 - Associate Rule Mining
+
+```{r echo=FALSE, error=FALSE, warning=FALSE, include=FALSE}
+library(tidyverse)
+library(arules) 
+library(arulesViz)
+```
+
+```{r echo=FALSE,error=FALSE, warning=FALSE}
+groceries_read = scan("STA380_ka/STA380/data/groceries.txt", what = "", sep = "\n")
+str(groceries_read)
+groceries = strsplit(groceries_read, ",")
+gtransact = as(groceries, "transactions")
+itemFrequencyPlot(gtransact, topN = 20)
+```
+
+```{r echo=FALSE, error=FALSE, warning=FALSE, include=FALSE}
+grules_1 = apriori(gtransact, 
+                     parameter=list(support=.005, confidence=.1, minlen=2))
+```
+
+```{r echo=FALSE, error=FALSE, warning=FALSE}
+cat("Considering multiple combinations of support and confidence")
+plot(head(grules_1, 10, by='lift'), method='graph')
+
+cat("we see that people who buy ham are likely to buy white bread")
+cat("people who buy berries are likely to buy whipper cream")
+cat("people who buy herbs are likely to buy root vegetables")  
+```
+
+```{r echo=FALSE}
+cat("Tuning the parameter to get a good combinations of products with higher confidence")
+grules_2 = apriori(gtransact, 
+                      parameter=list(support=0.0015, confidence=0.8, minlen=2))
+arules::inspect(grules_2)
+
+
+plot(head(grules_2, 10, by='lift'), method='graph')
+
+cat("we see that people who buy liquor are more likely to buy wine and beer")
+cat("people who buy whole milk are more likely to buy yogurt and whipped cream")
+cat("people who buy tropical fruits are more likely to buy citrus fruit and root vegetables")   
+```
+
+```{r echo=FALSE}
+cat(" Choose a subset for better analysis")
+
+inspect(subset(grules_2, subset=lift > 4 & confidence > 0.7))
+
+cat(" plot all the rules in (support, confidence) space")
+
+plot(grules_2, measure = c("support", "lift"), shading = "confidence")
+
+cat ("two key plot: coloring is by size (order) of item set")
+plot(grules_2, method='two-key plot')
+
+cat("from the above plots we can see that high confidence has less support and lift")  
+```
